@@ -15,7 +15,6 @@ namespace :path do
   desc "Print all iTunes backup paths"
   task :all do
     backup_dir = ENV['HOME'] + "/Library/Application\ Support/MobileSync/Backup"
-    latest_backup = nil
     Dir.foreach(backup_dir) do |item|
       next if item == '.' or item == '..' or item == '.DS_Store'
       f = File.new("#{backup_dir}/#{item}")
@@ -78,7 +77,7 @@ namespace :export do
     db = SQLite3::Database.new iphone_sms_db_name
     csv = "Address,FromMe,Contact,Date,Content,HadAttachment"
     db.execute("SELECT h.ROWID, m.ROWID, m.handle_id, h.id, m.is_from_me, m.text, m.date FROM message AS m JOIN handle AS h ON m.handle_id==h.ROWID ORDER BY h.id, m.date") do |msg|
-      date = DateTime.strptime("#{msg[6] + 978307200}", '%s')
+      date = convertDate(msg[6])
       content = msg[5]
       content = content.gsub(/\n/, " ") unless !content
       csv += "\n\"#{msg[3]}\",#{msg[4] == 1 ? "Yes" : "No"},\"#{"Unknown"}\",\"#{date}\",\"#{content}\",#{msg[7]==1 ? "Yes" : "No"}"
@@ -254,6 +253,10 @@ def find_in_schema(db, query)
       end
     end
   end
+end
+
+def convertDate(backupDate)
+  DateTime.strptime("#{backupDate + 978307200}", '%s')
 end
 
 def print_plist(plist_blob)
