@@ -1,0 +1,6 @@
+iOS Backup Unboxer is merely a Rakefile containing tasks to aid in exploring and extracting data from iTunes iOS backups. It is currently very alpha. To use:
+
+cd /path/to/install
+git clone https://github.com/jwilkey/ios-backup-unboxer.git
+cd ios-backup-unboxer
+rake -T
