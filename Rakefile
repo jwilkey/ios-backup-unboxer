@@ -88,24 +88,27 @@ namespace :export do
 
   desc "Export images and videos into organized folders"
   task :attachments do
-    system("mkdir -p ./export/videos") or puts "videos directory already exists"
     files = get_attachment_paths
     files.each { |attachment|
-      f = File.new(attachment[0])
-      date = DateTime.strptime("#{attachment[1] + 978307200}", '%s')
+      mime = attachment[2]
+      media_path = mime.split('/').first
+      if !['image','video'].include? media_path
+        next
+      end
+
+      date = convertDate(attachment[1])
       sender = attachment[3]
       sender.slice! '+'
-      filename = date.strftime("%Y_%m_%d_H%HM%MS%S_#{sender}")
-      if attachment[2].include? 'image/'
-        directory = "./export/images/#{date.year}/#{date.month}"
-        system("mkdir -p #{directory}") or puts "Unable to create directory: #{directory}"
-        extension = attachment[2]
-        extension.slice! 'image/'
-        command = "cp '#{attachment[0]}' #{directory}/#{filename}.#{extension}"
-        system(command) or puts "Unable to execute:\n#{command}".red
-      elsif attachment[2].include? 'video/'
-        system("cp '#{attachment[0]}' ./export/videos/#{filename}.mov") or puts "Unable to copy video:\n#{filename}".red
-      end
+      created_date = date.strftime("%m/%d/%Y %H:%M:%S")
+      filename = attachment[4].split('/').last
+
+      directory = "./export/#{media_path}/#{date.year}/#{date.month}"
+      system("mkdir -p #{directory}") or puts "Unable to create directory: #{directory}".red
+      file_path = "#{directory}/#{filename}"
+      command = "cp '#{attachment[0]}' #{file_path}"
+      puts "Copying #{attachment[4]}"
+      system(command) or puts "Unable to execute:\n#{command}".red
+      system("SetFile -d '#{created_date}' #{file_path}") or puts "Unable to set creator and created date".red
     }
   end
 
@@ -217,7 +220,7 @@ def get_attachment_paths
     next if !filename
     filename.sub! '~/', 'MediaDomain-' unless !filename
     filename = Digest::SHA1.hexdigest filename
-    files.push(["#{backup.path}/#{filename}", attachment[5], attachment[6], attachment[8]])
+    files.push(["#{backup.path}/#{filename}", attachment[5], attachment[6], attachment[8], attachment[4]])
   end
   files
 end
