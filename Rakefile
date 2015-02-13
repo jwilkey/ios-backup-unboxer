@@ -69,6 +69,28 @@ task :calls do
   end
 end
 
+desc "Print all image files"
+task :images do
+  count = 0
+  eachFileWithMime(get_latest_backup.path) do |file_name, mime, total_count|
+    if mime.include? "image"
+      count += 1
+      puts "#{count.to_s.rjust(5, ' ')} #{file_name} #{mime}"
+    end
+  end
+end
+
+desc "Creates ./export/image_links/ which contains symlinks to all image files"
+task :images_link do
+  backup_path = get_latest_backup.path
+  system("mkdir -p ./export/image_links") or raise "Unable to create images_links directory"
+  eachFileWithMime(backup_path) do |file_name, mime, total_count|
+    if mime.include? "image"
+      FileUtils.ln_s "#{backup_path}/#{file_name}", "./export/image_links/#{file_name}"
+    end
+  end
+end
+
 namespace :export do
   desc "Export sms conversations to a csv file"
   task :sms_csv do
@@ -176,9 +198,8 @@ end
 
 desc "List file types in backup"
 task :file_types do
-  backup_path = get_latest_backup.path
-  Dir.foreach(backup_path) do |item|
-    IO.popen(["file", "-Ib", "#{backup_path}/#{item}"], in: :close, err: :close) { |io| puts "#{item} #{io.read.chomp}" }
+  eachFileWithMime(get_latest_backup.path) do |file_name, mime, count|
+    puts "#{count.to_s.rjust(5, ' ')} #{file_name} #{mime}"
   end
 end
 
@@ -207,6 +228,17 @@ def eachDatabase(backup_path, print_path=true)
     rescue Exception => e
       puts "EXCEPTION in #{db_path}:\n#{e}".red
     end
+  end
+end
+
+def eachFileWithMime(path)
+  count = 1
+  Dir.foreach(path) do |item|
+    IO.popen(["file", "-Ib", "#{path}/#{item}"], in: :close, err: :close) { |io|
+      mime = io.read.chomp
+      yield item, mime, count
+      count += 1
+    }
   end
 end
 
