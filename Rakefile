@@ -36,11 +36,9 @@ end
 
 desc "Print SMS text, date and sender"
 task :sms do
-  backup = get_latest_backup
-  iphone_sms_db_name = "#{backup.path}/3d0d7e5fb2ce288813306e4d4636395e047a3d28"
+  iphone_sms_db_name = PathHelper.sms_database(get_latest_backup.path)
   puts "DB Name: #{iphone_sms_db_name}"
   db = SQLite3::Database.new iphone_sms_db_name
-  print_tables(db)
   db.execute("SELECT h.ROWID, m.ROWID, m.handle_id, h.id, m.is_from_me, m.text, m.date FROM message AS m JOIN handle AS h ON m.handle_id==h.ROWID ORDER BY h.id, m.date") do |message|
     puts "#{message}".colorize(message[4]==1 ? :blue : :green)
   end
@@ -48,8 +46,7 @@ end
 
 desc "Print Contacts"
 task :contacts do
-  backup = get_latest_backup
-  contacts_db_path = "#{backup.path}/75b12106910f0b106f64d72eb75397427884fd5a"
+  contacts_db_path = PathHelper.contacts_database(get_latest_backup.path)
   puts "DB Name: #{contacts_db_path}"
   db = SQLite3::Database.new contacts_db_path
   print_tables(db)
@@ -60,8 +57,7 @@ end
 
 desc "Print Calls"
 task :calls do
-  backup = get_latest_backup
-  calls_db_path = "#{backup.path}/2b2b0084a1bc3a5ac8c27afdf14afb42c61a19ca"
+  calls_db_path = PathHelper.calls_database(get_latest_backup.path)
   puts "DB Name: #{calls_db_path}"
   db = SQLite3::Database.new calls_db_path
   print_tables(db)
@@ -94,9 +90,7 @@ end
 
 desc "Image database"
 task :photos do
-  backup_path = get_latest_backup.path
-  db = SQLite3::Database.new "#{backup_path}/29b3120c373dae183b2962a8fba6323679cedd1d"
-  # db.execute("SELECT * FROM collections_meta") do |row|
+  db = SQLite3::Database.new PathHelper.photos_database(get_latest_backup.path)
   db.execute("SELECT * FROM all_photos") do |row|
     puts "#{row}"
   end
@@ -105,15 +99,12 @@ end
 namespace :export do
   desc "Export sms conversations to a csv file"
   task :sms_csv do
-    backup = get_latest_backup
-    iphone_sms_db_name = "#{backup.path}/3d0d7e5fb2ce288813306e4d4636395e047a3d28"
-    db = SQLite3::Database.new iphone_sms_db_name
+    db = SQLite3::Database.new PathHelper.sms_database(get_latest_backup.path)
     csv = CsvHelper.sms_header
     db.execute(DbQueryHelper.sms_query) do |msg|
       csv += CsvHelper.row_with_message(msg)
     end
-    File.open('./export/sms.csv', 'w') { |file| file.write(csv) }
-    system("open ./export/sms.csv")
+    FileHelper.save_and_open_csv(csv)
   end
 
   desc "Export images and videos into organized folders"
@@ -233,8 +224,7 @@ def eachFileWithMime(path)
 end
 
 def get_attachment_paths
-  backup = get_latest_backup
-  iphone_sms_db_name = "#{backup.path}/3d0d7e5fb2ce288813306e4d4636395e047a3d28"
+  iphone_sms_db_name = PathHelper.sms_database(get_latest_backup.path)
   db = SQLite3::Database.new iphone_sms_db_name
   files = Array.new
   db.execute( "select m.ROWID, a.ROWID, attachment_id, message_id, filename, created_date, mime_type, m.handle_id, h.id from message_attachment_join AS jt JOIN message AS m ON m.ROWID==jt.message_id JOIN attachment AS a ON a.ROWID==jt.attachment_id JOIN handle AS h ON m.handle_id==h.ROWID" ) do |attachment|

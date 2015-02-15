@@ -18,4 +18,9 @@ class FileHelper
     system(command) or puts "Unable to execute:\n#{command}".red
     system("SetFile -d '#{created_date}' #{file_path}") or puts "Unable to set creator and created date".red
   end
+
+  def self.save_and_open_csv(csv)
+    File.open('./export/sms.csv', 'w') { |file| file.write(csv) }
+    system("open ./export/sms.csv")
+  end
 end
