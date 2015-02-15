@@ -4,6 +4,7 @@ require "cfpropertylist"
 require 'digest/sha1'
 require 'launchy'
 require 'pry'
+require './helpers/file_helper.rb'
 
 def system_or_exit(cmd, unsecure = false, stdout = nil)
   puts "Executing #{cmd}" if !unsecure
@@ -91,6 +92,16 @@ task :images_link do
   end
 end
 
+desc "Image database"
+task :photos do
+  backup_path = get_latest_backup.path
+  db = SQLite3::Database.new "#{backup_path}/29b3120c373dae183b2962a8fba6323679cedd1d"
+  # db.execute("SELECT * FROM collections_meta") do |row|
+  db.execute("SELECT * FROM all_photos") do |row|
+    puts "#{row}"
+  end
+end
+
 namespace :export do
   desc "Export sms conversations to a csv file"
   task :sms_csv do
@@ -112,25 +123,7 @@ namespace :export do
   task :attachments do
     files = get_attachment_paths
     files.each { |attachment|
-      mime = attachment[2]
-      media_path = mime.split('/').first
-      if !['image','video'].include? media_path
-        next
-      end
-
-      date = convertDate(attachment[1])
-      sender = attachment[3]
-      sender.slice! '+'
-      created_date = date.strftime("%m/%d/%Y %H:%M:%S")
-      filename = attachment[4].split('/').last
-
-      directory = "./export/#{media_path}/#{date.year}/#{date.month}"
-      system("mkdir -p #{directory}") or puts "Unable to create directory: #{directory}".red
-      file_path = "#{directory}/#{filename}"
-      command = "cp '#{attachment[0]}' #{file_path}"
-      puts "Copying #{attachment[4]}"
-      system(command) or puts "Unable to execute:\n#{command}".red
-      system("SetFile -d '#{created_date}' #{file_path}") or puts "Unable to set creator and created date".red
+      FileHelper.exportAttachment(attachment)
     }
   end
 
