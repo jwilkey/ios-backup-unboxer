@@ -6,6 +6,11 @@ require 'launchy'
 require 'pry'
 Dir["./helpers/*.rb"].each {|file| require file }
 
+desc "Export SMS attachments, messages to CSV"
+task :default => ["export:sms"] do
+
+end
+
 namespace :path do
   desc "Print all iTunes backup paths"
   task :all do
@@ -21,11 +26,6 @@ namespace :path do
   task :recent do
     puts get_latest_backup.path
   end
-end
-
-desc "Backup Message attachments"
-task :backup_sms do
-
 end
 
 desc "Print SMS text, date and sender"
@@ -83,38 +83,45 @@ task :photos do
 end
 
 namespace :export do
-  desc "Export sms conversations to a csv file"
-  task :sms_csv do
-    db = SQLite3::Database.new PathHelper.sms_database(get_latest_backup.path)
-    csv = CsvHelper.sms_header
-    db.execute(DbQueryHelper.sms_query) do |msg|
-      csv += CsvHelper.row_with_message(msg)
-    end
-    FileHelper.save_and_open_csv(csv)
+  desc "Export SMS messages to CSV, attachments to folder and HTML preview"
+  task :sms => ["sms:csv", "sms:attachments", "sms:attachments_html"] do
+
   end
 
-  desc "Export images and videos into organized folders"
-  task :attachments do
-    files = get_attachment_paths
-    files.each { |attachment|
-      FileHelper.exportAttachment(attachment)
-    }
-  end
-
-  desc "ExportCreate and open an HTML page of SMS image attachments"
-  task :attachments_html do
-    files = get_attachment_paths
-    html = "<!DOCTYPE html><html><style>.thumb { max-width: 250px; max-height: 250px; }</style><body>"
-    files.each { |attachment|
-      f = File.new(attachment[0])
-      if attachment[2].include? 'image/'
-        html += "\n<img class='thumb' src='#{f.path}'>"
+  namespace :sms do
+    desc "Export SMS conversations to a csv file"
+    task :csv do
+      db = SQLite3::Database.new PathHelper.sms_database(get_latest_backup.path)
+      csv = CsvHelper.sms_header
+      db.execute(DbQueryHelper.sms_query) do |msg|
+        csv += CsvHelper.row_with_message(msg)
       end
-    }
-    html += "</body></html>"
-    system("mkdir ./export") or puts "Unable to make 'export' directory".red
-    File.open('./export/sms_images.html', 'w') { |file| file.write(html) }
-    Launchy::Browser.run("./export/sms_images.html")
+      FileHelper.save_and_open_csv(csv)
+    end
+
+    desc "Export SMS images and videos into organized folders"
+    task :attachments do
+      files = get_attachment_paths
+      files.each { |attachment|
+        FileHelper.exportAttachment(attachment)
+      }
+    end
+
+    desc "Create and open an HTML page of SMS image attachments"
+    task :attachments_html do
+      files = get_attachment_paths
+      html = "<!DOCTYPE html><html><style>.thumb { max-width: 250px; max-height: 250px; }</style><body>"
+      files.each { |attachment|
+        f = File.new(attachment[0])
+        if attachment[2].include? 'image/'
+          html += "\n<img class='thumb' src='#{f.path}'>"
+        end
+      }
+      html += "</body></html>"
+      system("mkdir ./export") or puts "Unable to make 'export' directory".red
+      File.open('./export/sms_images.html', 'w') { |file| file.write(html) }
+      Launchy::Browser.run("./export/sms_images.html")
+    end
   end
 end
 
@@ -210,7 +217,8 @@ def eachFileWithMime(path)
 end
 
 def get_attachment_paths
-  iphone_sms_db_name = PathHelper.sms_database(get_latest_backup.path)
+  backup_path = get_latest_backup.path
+  iphone_sms_db_name = PathHelper.sms_database(backup_path)
   db = SQLite3::Database.new iphone_sms_db_name
   files = Array.new
   db.execute( "select m.ROWID, a.ROWID, attachment_id, message_id, filename, created_date, mime_type, m.handle_id, h.id from message_attachment_join AS jt JOIN message AS m ON m.ROWID==jt.message_id JOIN attachment AS a ON a.ROWID==jt.attachment_id JOIN handle AS h ON m.handle_id==h.ROWID" ) do |attachment|
@@ -218,7 +226,7 @@ def get_attachment_paths
     next if !filename
     filename.sub! '~/', 'MediaDomain-' unless !filename
     filename = Digest::SHA1.hexdigest filename
-    files.push(["#{backup.path}/#{filename}", attachment[5], attachment[6], attachment[8], attachment[4]])
+    files.push(["#{backup_path}/#{filename}", attachment[5], attachment[6], attachment[8], attachment[4]])
   end
   files
 end
