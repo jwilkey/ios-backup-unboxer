@@ -4,7 +4,7 @@ require "cfpropertylist"
 require 'digest/sha1'
 require 'launchy'
 require 'pry'
-require './helpers/file_helper.rb'
+Dir["./helpers/*.rb"].each {|file| require file }
 
 def system_or_exit(cmd, unsecure = false, stdout = nil)
   puts "Executing #{cmd}" if !unsecure
@@ -108,15 +108,12 @@ namespace :export do
     backup = get_latest_backup
     iphone_sms_db_name = "#{backup.path}/3d0d7e5fb2ce288813306e4d4636395e047a3d28"
     db = SQLite3::Database.new iphone_sms_db_name
-    csv = "Address,FromMe,Contact,Date,Content,HadAttachment"
-    db.execute("SELECT h.ROWID, m.ROWID, m.handle_id, h.id, m.is_from_me, m.text, m.date FROM message AS m JOIN handle AS h ON m.handle_id==h.ROWID ORDER BY h.id, m.date") do |msg|
-      date = convertDate(msg[6])
-      content = msg[5]
-      content = content.gsub(/\n/, " ") unless !content
-      csv += "\n\"#{msg[3]}\",#{msg[4] == 1 ? "Yes" : "No"},\"#{"Unknown"}\",\"#{date}\",\"#{content}\",#{msg[7]==1 ? "Yes" : "No"}"
+    csv = CsvHelper.sms_header
+    db.execute(DbQueryHelper.sms_query) do |msg|
+      csv += CsvHelper.row_with_message(msg)
     end
     File.open('./export/sms.csv', 'w') { |file| file.write(csv) }
-    Launchy.open("./export/sms.csv")
+    system("open ./export/sms.csv")
   end
 
   desc "Export images and videos into organized folders"
