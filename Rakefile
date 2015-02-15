@@ -118,9 +118,9 @@ namespace :export do
         end
       }
       html += "</body></html>"
-      system("mkdir ./export") or puts "Unable to make 'export' directory".red
+      system("mkdir ./export")
       File.open('./export/sms_images.html', 'w') { |file| file.write(html) }
-      Launchy::Browser.run("./export/sms_images.html")
+      Launchy.open("./export/sms_images.html")
     end
   end
 end
