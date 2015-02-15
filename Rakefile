@@ -6,12 +6,6 @@ require 'launchy'
 require 'pry'
 Dir["./helpers/*.rb"].each {|file| require file }
 
-def system_or_exit(cmd, unsecure = false, stdout = nil)
-  puts "Executing #{cmd}" if !unsecure
-  cmd += " >#{stdout}" if stdout
-  system(cmd) or raise "******** Build failed ********"
-end
-
 namespace :path do
   desc "Print all iTunes backup paths"
   task :all do
@@ -36,9 +30,7 @@ end
 
 desc "Print SMS text, date and sender"
 task :sms do
-  iphone_sms_db_name = PathHelper.sms_database(get_latest_backup.path)
-  puts "DB Name: #{iphone_sms_db_name}"
-  db = SQLite3::Database.new iphone_sms_db_name
+  db = SQLite3::Database.new PathHelper.sms_database(get_latest_backup.path)
   db.execute("SELECT h.ROWID, m.ROWID, m.handle_id, h.id, m.is_from_me, m.text, m.date FROM message AS m JOIN handle AS h ON m.handle_id==h.ROWID ORDER BY h.id, m.date") do |message|
     puts "#{message}".colorize(message[4]==1 ? :blue : :green)
   end
@@ -46,10 +38,7 @@ end
 
 desc "Print Contacts"
 task :contacts do
-  contacts_db_path = PathHelper.contacts_database(get_latest_backup.path)
-  puts "DB Name: #{contacts_db_path}"
-  db = SQLite3::Database.new contacts_db_path
-  print_tables(db)
+  db = SQLite3::Database.new PathHelper.contacts_database(get_latest_backup.path)
   db.execute("SELECT * FROM contacts WHERE kind!='map-location'") do |contact|
     puts "#{contact}"
   end
@@ -57,10 +46,7 @@ end
 
 desc "Print Calls"
 task :calls do
-  calls_db_path = PathHelper.calls_database(get_latest_backup.path)
-  puts "DB Name: #{calls_db_path}"
-  db = SQLite3::Database.new calls_db_path
-  print_tables(db)
+  db = SQLite3::Database.new PathHelper.calls_database(get_latest_backup.path)
   db.execute("SELECT * FROM call") do |call|
     puts "#{call}"
   end
